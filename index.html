@@ -227,7 +227,7 @@
       border-collapse: collapse;
       background-color: rgba(200, 215, 230, 0.5);
       border: 3px solid rgba(74, 85, 104, 0.7);
-      border-radius: 6px;
+      border-radius: 12px;
       overflow: hidden;
       max-width: 100%;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -264,8 +264,11 @@
     }
 
     .cell.selected {
-      background-color: var(--primary-dim);
-      border: 2px solid var(--primary);
+      background-color: rgba(91, 155, 213, 0.18);
+      backdrop-filter: blur(12px) saturate(180%);
+      -webkit-backdrop-filter: blur(12px) saturate(180%);
+      border: 2px solid rgba(91, 155, 213, 0.7);
+      box-shadow: 0 0 12px rgba(91, 155, 213, 0.15), inset 0 0 8px rgba(255,255,255,0.4);
       z-index: 2;
     }
 
@@ -273,21 +276,29 @@
       background-color: rgba(79, 195, 247, 0.12);
     }
 
-    .cell.highlight-row,
-    .cell.highlight-col,
-    .cell.highlight-group {
-      background-color: rgba(91, 155, 213, 0.06);
+    .cell.highlight-area {
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
 
     .cell.dim {
-      opacity: 0.35;
+      filter: grayscale(0.25) brightness(0.92);
     }
 
-    .cell.selected.highlight-row,
-    .cell.selected.highlight-col,
-    .cell.selected.highlight-group,
+    .cell.dim::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(180, 195, 215, 0.45);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .cell.dim .cage-sum { z-index: 3; }
+    .cell.dim .cell-content { position: relative; z-index: 2; }
+
     .cell.selected.highlight-same {
-      background-color: var(--primary-dim);
+      background-color: rgba(91, 155, 213, 0.18);
     }
 
     .cell.prefilled {
@@ -350,8 +361,8 @@
       grid-template-rows: repeat(3, 1fr);
       width: 100%;
       height: 100%;
-      padding-top: 2px;
-      padding-left: 2px;
+      padding-top: 12px;
+      padding-left: 12px;
       box-sizing: border-box;
     }
 
@@ -796,6 +807,7 @@
         --font-size: 14px;
       }
       body { padding: 8px; }
+      .cell-content .notes-grid { padding-top: 8px; padding-left: 8px; }
       .cell-content .notes-grid span { font-size: 7px; }
       .cell .cage-sum { font-size: 8px; top: 1px; left: 2px; }
       .action-btn { min-width: 44px; padding: 4px 4px; }
@@ -1503,11 +1515,15 @@ const Game = {
 
   /* ---- 选中格子 ---- */
   selectCell(row, col) {
-    this.selectedCell = { row, col };
-    /* 如果点击有数字的格子，自动高亮该数字 */
-    const val = this.board[row][col];
-    if (val > 0) {
-      this.highlightNum = val;
+    if (this.selectedCell && this.selectedCell.row === row && this.selectedCell.col === col) {
+      this.selectedCell = null;
+      this.highlightNum = 0;
+    } else {
+      this.selectedCell = { row, col };
+      const val = this.board[row][col];
+      if (val > 0) {
+        this.highlightNum = val;
+      }
     }
     this.render();
   },
@@ -1834,6 +1850,30 @@ const Game = {
       btn.classList.toggle('completed', counts[n] >= 9);
     });
 
+    const isDim = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
+    if (sr >= 0) {
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (r === sr && c === sc) continue;
+          const sameG = Math.floor(r / GROUP) === Math.floor(sr / GROUP) && Math.floor(c / GROUP) === Math.floor(sc / GROUP);
+          if (r === sr || c === sc || sameG) isDim[r][c] = true;
+        }
+      }
+    }
+
+    const dimEdge = Array.from({length: SIZE}, () => Array.from({length: SIZE}, () => ({t:false,b:false,l:false,r:false})));
+    if (sr >= 0) {
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (!isDim[r][c]) continue;
+          if (r === 0 || !isDim[r-1][c]) dimEdge[r][c].t = true;
+          if (r === SIZE-1 || !isDim[r+1][c]) dimEdge[r][c].b = true;
+          if (c === 0 || !isDim[r][c-1]) dimEdge[r][c].l = true;
+          if (c === SIZE-1 || !isDim[r][c+1]) dimEdge[r][c].r = true;
+        }
+      }
+    }
+
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const td = this.cellEls[r][c];
@@ -1843,6 +1883,7 @@ const Game = {
         const isConflict = conflicts.has(`${r},${c}`);
         const isCageViolation = cageSumViolations.has(`${r},${c}`);
         const sameGroup = sr >= 0 && Math.floor(r / GROUP) === Math.floor(sr / GROUP) && Math.floor(c / GROUP) === Math.floor(sc / GROUP);
+        const de = dimEdge[r][c];
 
         const newClass = 'cell'
           + ((c + 1) % GROUP === 0 && c < SIZE - 1 ? ' group-right' : '')
@@ -1859,11 +1900,15 @@ const Game = {
           + (isCageViolation ? ' cage-sum-violation' : '')
           + (sr >= 0 && r === sr && c === sc ? ' selected' : '')
           + (sr >= 0 && selectedVal > 0 && val === selectedVal && !(r === sr && c === sc) ? ' highlight-same' : '')
-          + (sr >= 0 && r === sr ? ' highlight-row' : '')
-          + (sr >= 0 && c === sc ? ' highlight-col' : '')
-          + (sr >= 0 && sameGroup && !(r === sr && c === sc) ? ' highlight-group' : '')
-          + (sr >= 0 && !(r === sr) && !(c === sc) && !sameGroup ? ' dim' : '');
+          + (isDim[r][c] ? ' highlight-area dim' : '');
         td.className = newClass;
+
+        const edgeShadows = [];
+        if (de.t) edgeShadows.push('inset 0 3px 0 0 rgba(55,120,210,0.7)');
+        if (de.b) edgeShadows.push('inset 0 -3px 0 0 rgba(55,120,210,0.7)');
+        if (de.l) edgeShadows.push('inset 3px 0 0 0 rgba(55,120,210,0.7)');
+        if (de.r) edgeShadows.push('inset -3px 0 0 0 rgba(55,120,210,0.7)');
+        td.style.boxShadow = edgeShadows.length > 0 ? edgeShadows.join(', ') : '';
 
         if (val > 0) {
           content.textContent = val;
