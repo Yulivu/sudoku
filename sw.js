@@ -24,10 +24,6 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'skip-waiting') self.skipWaiting();
-});
-
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
