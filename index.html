@@ -378,10 +378,7 @@
     /* ============================
        杀手数独笼子样式
        ============================ */
-    .cell.cage-top { border-top: 1.5px dashed #c08030; }
-    .cell.cage-bottom { border-bottom: 1.5px dashed #c08030; }
-    .cell.cage-left { border-left: 1.5px dashed #c08030; }
-    .cell.cage-right { border-right: 1.5px dashed #c08030; }
+
 
     .cell .cage-sum {
       position: absolute;
@@ -393,6 +390,7 @@
       line-height: 1;
       pointer-events: none;
       text-shadow: 0 0 2px rgba(255,255,255,0.8);
+      z-index: 3;
     }
 
     .cell.cage-bg-0 { background-color: #dbeafe; }
@@ -1421,24 +1419,6 @@ const Game = {
     }
   },
 
-  /* ---- 自动跳到下一个空格 ---- */
-  autoAdvance(row, col) {
-    for (let c = col + 1; c < SIZE; c++) {
-      if (this.puzzle[row][c] === 0 && this.board[row][c] === 0) {
-        this.selectCell(row, c);
-        return;
-      }
-    }
-    for (let r = row + 1; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        if (this.puzzle[r][c] === 0 && this.board[r][c] === 0) {
-          this.selectCell(r, c);
-          return;
-        }
-      }
-    }
-  },
-
   /* ---- 扣血 ---- */
   loseLife() {
     const prevLives = this.lives;
@@ -1617,8 +1597,7 @@ const Game = {
     CellAnim.flush(this.cellEls);
     SoundFX.playCorrect();
     if (!this.gameOver) {
-      if (this.checkWin()) return;
-      this.autoAdvance(row, col);
+      this.checkWin();
     }
   },
 
@@ -1854,12 +1833,6 @@ const Game = {
         if ((r + 1) % GROUP === 0 && r < SIZE - 1) td.classList.add('group-bottom');
 
         if (this.mode === 'killer' && this.cageBorders) {
-          const b = this.cageBorders[r][c];
-          if (b.top) td.classList.add('cage-top');
-          if (b.bottom) td.classList.add('cage-bottom');
-          if (b.left) td.classList.add('cage-left');
-          if (b.right) td.classList.add('cage-right');
-
           const cageId = this.cageAssigned[r][c];
           td.classList.add('cage-bg-' + (this.cageColors ? this.cageColors[cageId] : cageId % 5));
 
@@ -1941,11 +1914,7 @@ const Game = {
           + ((c + 1) % GROUP === 0 && c < SIZE - 1 ? ' group-right' : '')
           + ((r + 1) % GROUP === 0 && r < SIZE - 1 ? ' group-bottom' : '')
           + (this.mode === 'killer' && this.cageBorders
-              ? (this.cageBorders[r][c].top ? ' cage-top' : '')
-                + (this.cageBorders[r][c].bottom ? ' cage-bottom' : '')
-                + (this.cageBorders[r][c].left ? ' cage-left' : '')
-                + (this.cageBorders[r][c].right ? ' cage-right' : '')
-                + (' cage-bg-' + (this.cageColors ? this.cageColors[this.cageAssigned[r][c]] : this.cageAssigned[r][c] % 5))
+              ? (' cage-bg-' + (this.cageColors ? this.cageColors[this.cageAssigned[r][c]] : this.cageAssigned[r][c] % 5))
               : '')
           + (val > 0 ? (isPrefilled ? ' prefilled' : ' user-entry') : '')
           + (isConflict ? ' conflict' : '')
