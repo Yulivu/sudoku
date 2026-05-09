@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Sudoku Pro</title>
   <meta name="description" content="Classic Sudoku and Killer Sudoku game with PWA support">
-  <meta name="theme-color" content="#0f1123">
+  <link rel="icon" type="image/png" href="sudoku.png">
+  <meta name="theme-color" content="#e8f0f8">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Sudoku Pro">
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="sudoku.png">
   <style>
     /* ============================
        PWA 注册 & 全局样式
@@ -25,19 +26,19 @@
     }
 
     :root {
-      --bg: #0f1123;
-      --surface: #1a1a2e;
-      --surface-2: #252540;
-      --text: #e0e0e0;
-      --text-muted: #888;
-      --primary: #4fc3f7;
-      --primary-dim: rgba(79, 195, 247, 0.2);
-      --danger: #ef5350;
-      --danger-dim: rgba(239, 83, 80, 0.2);
-      --success: #66bb6a;
-      --warning: #ffa726;
-      --border: #3a3a5c;
-      --border-thick: #4a4a6a;
+      --bg: #e8f0f8;
+      --surface: #ffffff;
+      --surface-2: #f0f4f8;
+      --text: #2c3e50;
+      --text-muted: #8e99a4;
+      --primary: #5b9bd5;
+      --primary-dim: rgba(91, 155, 213, 0.15);
+      --danger: #e74c3c;
+      --danger-dim: rgba(231, 76, 60, 0.12);
+      --success: #27ae60;
+      --warning: #f39c12;
+      --border: #cdd6e0;
+      --border-thick: #a8b8c8;
       --cell-size: 42px;
       --font-size: 18px;
       --radius: 12px;
@@ -95,7 +96,7 @@
 
     .mode-btn.active {
       background: var(--primary);
-      color: #000;
+      color: #fff;
       font-weight: 700;
     }
 
@@ -121,11 +122,57 @@
       font-weight: 500;
     }
 
+    #lives-display {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    #lives-display .heart {
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    #lives-display .heart.lost {
+      opacity: 0.2;
+      filter: grayscale(1);
+    }
+
+    #timer-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     #timer-display {
       font-size: 20px;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       color: var(--text);
+    }
+
+    #btn-pause {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #btn-pause:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    #btn-pause svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
     }
 
     /* ============================
@@ -142,7 +189,7 @@
 
     table {
       border-collapse: collapse;
-      background-color: #2a2a4a;
+      background-color: var(--border);
       border: 2px solid var(--border-thick);
       border-radius: 4px;
       overflow: hidden;
@@ -158,7 +205,7 @@
       text-align: center;
       font-size: var(--font-size);
       border: 1px solid var(--border);
-      background-color: #1a1a2e;
+      background-color: #ffffff;
       color: var(--text);
       cursor: pointer;
       position: relative;
@@ -189,7 +236,7 @@
     .cell.highlight-row,
     .cell.highlight-col,
     .cell.highlight-group {
-      background-color: rgba(255, 255, 255, 0.05);
+      background-color: rgba(91, 155, 213, 0.06);
     }
 
     .cell.selected.highlight-row,
@@ -215,7 +262,7 @@
     }
 
     .cell:hover {
-      background-color: rgba(255, 255, 255, 0.08);
+      background-color: rgba(91, 155, 213, 0.1);
     }
 
     /* 笔记模式小数字 */
@@ -242,10 +289,10 @@
     /* ============================
        杀手数独笼子样式
        ============================ */
-    .cell.cage-top { border-top: 2.5px solid #e0a030; }
-    .cell.cage-bottom { border-bottom: 2.5px solid #e0a030; }
-    .cell.cage-left { border-left: 2.5px solid #e0a030; }
-    .cell.cage-right { border-right: 2.5px solid #e0a030; }
+    .cell.cage-top { border-top: 2.5px solid #d4953a; }
+    .cell.cage-bottom { border-bottom: 2.5px solid #d4953a; }
+    .cell.cage-left { border-left: 2.5px solid #d4953a; }
+    .cell.cage-right { border-right: 2.5px solid #d4953a; }
 
     .cell .cage-sum {
       position: absolute;
@@ -253,17 +300,17 @@
       left: 3px;
       font-size: 10px;
       font-weight: 800;
-      color: #ffcc00;
+      color: #b8860b;
       line-height: 1;
       pointer-events: none;
-      text-shadow: 0 0 3px rgba(0,0,0,0.8);
+      text-shadow: 0 0 2px rgba(255,255,255,0.8);
     }
 
-    .cell.cage-bg-0 { background-color: #1a2332; }
-    .cell.cage-bg-1 { background-color: #2a1a32; }
-    .cell.cage-bg-2 { background-color: #1a2a22; }
-    .cell.cage-bg-3 { background-color: #2a2218; }
-    .cell.cage-bg-4 { background-color: #22182a; }
+    .cell.cage-bg-0 { background-color: #edf5fa; }
+    .cell.cage-bg-1 { background-color: #f5edf5; }
+    .cell.cage-bg-2 { background-color: #edf5f0; }
+    .cell.cage-bg-3 { background-color: #f5f2ed; }
+    .cell.cage-bg-4 { background-color: #f0edf5; }
 
     .cell.cage-sum-violation {
       background-color: rgba(239, 83, 80, 0.25) !important;
@@ -350,7 +397,7 @@
     .num-btn:hover,
     .num-btn:active {
       background: var(--primary);
-      color: #000;
+      color: #fff;
       border-color: var(--primary);
     }
 
@@ -374,7 +421,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.95);
+      background: rgba(200, 215, 230, 0.9);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -427,7 +474,7 @@
     .diff-btn:hover,
     .diff-btn:active {
       background: var(--primary);
-      color: #000;
+      color: #fff;
       border-color: var(--primary);
     }
 
@@ -440,7 +487,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.95);
+      background: rgba(200, 215, 230, 0.9);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -479,7 +526,110 @@
       border: none;
       border-radius: 8px;
       background: var(--primary);
-      color: #000;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ============================
+       暂停遮罩
+       ============================ */
+    #pause-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(200, 215, 230, 0.92);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 150;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    #pause-overlay.hidden {
+      display: none;
+    }
+
+    #pause-content {
+      text-align: center;
+      color: var(--text);
+    }
+
+    #pause-content h2 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    #pause-content p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    #pause-content button {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ============================
+       游戏结束弹窗
+       ============================ */
+    #gameover-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(200, 215, 230, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 250;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #gameover-overlay.hidden {
+      display: none;
+    }
+
+    #gameover-content {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 32px 24px;
+      text-align: center;
+      width: 90%;
+      max-width: 320px;
+    }
+
+    #gameover-content h2 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: var(--danger);
+    }
+
+    #gameover-content p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    #gameover-content button {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
@@ -549,7 +699,13 @@
     <!-- 游戏信息 -->
     <div id="game-info">
       <span id="difficulty-label">简单</span>
-      <span id="timer-display">00:00</span>
+      <div id="lives-display"></div>
+      <div id="timer-area">
+        <span id="timer-display">00:00</span>
+        <button id="btn-pause" title="暂停">
+          <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 棋盘 -->
@@ -601,6 +757,24 @@
     </div>
   </div>
 
+  <!-- 暂停遮罩 -->
+  <div id="pause-overlay" class="hidden">
+    <div id="pause-content">
+      <h2>⏸ 游戏暂停</h2>
+      <p>点击继续按钮恢复游戏</p>
+      <button id="btn-resume">继续游戏</button>
+    </div>
+  </div>
+
+  <!-- 游戏结束弹窗 -->
+  <div id="gameover-overlay" class="hidden">
+    <div id="gameover-content">
+      <h2 id="gameover-title">💀 游戏结束</h2>
+      <p id="gameover-msg"></p>
+      <button id="gameover-new-game">再来一局</button>
+    </div>
+  </div>
+
 <script>
 /* ============================================================
    全局常量与工具
@@ -608,9 +782,9 @@
 const SIZE = 9;
 const GROUP = 3;
 const DIFFICULTY_MAP = {
-  easy:   { classic: 0.35, killer: 0 },
-  medium: { classic: 0.50, killer: 0 },
-  hard:   { classic: 0.65, killer: 0 }
+  easy:   { classic: 0.55, lives: 5 },
+  medium: { classic: 0.68, lives: 4 },
+  hard:   { classic: 0.82, lives: 3 }
 };
 
 /* ============================================================
@@ -813,10 +987,13 @@ class TimerManager {
     this.seconds = 0;
     this.interval = null;
     this.onTick = null;
+    this.paused = false;
   }
   start() {
     this.stop();
+    this.paused = false;
     this.interval = setInterval(() => {
+      if (this.paused) return;
       this.seconds++;
       if (this.onTick) this.onTick(this.seconds);
     }, 1000);
@@ -824,9 +1001,16 @@ class TimerManager {
   stop() {
     if (this.interval) { clearInterval(this.interval); this.interval = null; }
   }
+  pause() {
+    this.paused = true;
+  }
+  resume() {
+    this.paused = false;
+  }
   reset() {
     this.stop();
     this.seconds = 0;
+    this.paused = false;
     if (this.onTick) this.onTick(0);
   }
   setTime(s) {
@@ -853,6 +1037,10 @@ const Game = {
   highlightNum: 0,        // 当前高亮数字 (0=无)
   timer: new TimerManager(),
   history: [],            // 撤销栈
+  lives: 5,
+  maxLives: 5,
+  isPaused: false,
+  gameOver: false,
 
   /* ---- 初始化 ---- */
   init() {
@@ -885,9 +1073,15 @@ const Game = {
         this.cageAssigned = null;
         this.cageBorders = null;
       }
+      const dm = DIFFICULTY_MAP[this.difficulty];
+      this.maxLives = dm.lives;
+      this.lives = save.lives !== undefined ? save.lives : dm.lives;
+      this.gameOver = false;
+      this.isPaused = false;
       this.timer.setTime(save.elapsed || 0);
       this.timer.start();
       this.updateModeButtons();
+      this.renderLives();
       this.render();
     } else {
       this.showMenu();
@@ -914,8 +1108,14 @@ const Game = {
     this.noteMode = false;
     document.getElementById('btn-notes').classList.remove('active');
 
+    const dm = DIFFICULTY_MAP[difficulty];
+    this.maxLives = dm.lives;
+    this.lives = dm.lives;
+    this.gameOver = false;
+    this.isPaused = false;
+
     this.solved = generateSolved();
-    this.puzzle = createPuzzle(this.solved, DIFFICULTY_MAP[difficulty].classic);
+    this.puzzle = createPuzzle(this.solved, dm.classic);
     this.board = deepCopy(this.puzzle);
     this.notes = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => new Set()));
 
@@ -924,7 +1124,6 @@ const Game = {
       this.cages = cages;
       this.cageAssigned = assigned;
       this.cageBorders = getCageBorders(assigned);
-      /* 杀手模式：清空谜题，玩家全靠笼子提示 */
       for (let r = 0; r < SIZE; r++)
         for (let c = 0; c < SIZE; c++)
           this.puzzle[r][c] = 0;
@@ -935,9 +1134,11 @@ const Game = {
       this.cageBorders = null;
     }
 
+    this.timer.reset();
     this.timer.start();
     this.updateDifficultyLabel();
     this.updateModeButtons();
+    this.renderLives();
     this.render();
     this.saveState();
   },
@@ -961,6 +1162,47 @@ const Game = {
     if (mode === this.mode) return;
     this.mode = mode;
     this.showMenu();
+  },
+
+  /* ---- 渲染血量 ---- */
+  renderLives() {
+    const el = document.getElementById('lives-display');
+    el.innerHTML = '';
+    for (let i = 0; i < this.maxLives; i++) {
+      const heart = document.createElement('span');
+      heart.className = 'heart' + (i >= this.lives ? ' lost' : '');
+      heart.textContent = '❤️';
+      el.appendChild(heart);
+    }
+  },
+
+  /* ---- 扣血 ---- */
+  loseLife() {
+    this.lives--;
+    this.renderLives();
+    if (this.lives <= 0) {
+      this.gameOver = true;
+      this.timer.stop();
+      clearSave();
+      document.getElementById('gameover-title').textContent = '💀 血量耗尽！';
+      document.getElementById('gameover-msg').textContent = '错误太多，游戏结束！';
+      document.getElementById('gameover-overlay').classList.remove('hidden');
+    }
+  },
+
+  /* ---- 暂停 ---- */
+  pause() {
+    if (this.gameOver) return;
+    this.isPaused = true;
+    this.timer.pause();
+    document.getElementById('pause-overlay').classList.remove('hidden');
+  },
+
+  /* ---- 继续 ---- */
+  resume() {
+    this.isPaused = false;
+    this.timer.resume();
+    document.getElementById('pause-overlay').classList.add('hidden');
   },
 
   /* ---- 构建数字键盘 ---- */
@@ -995,9 +1237,23 @@ const Game = {
     document.getElementById('btn-notes').addEventListener('click', () => this.toggleNotes());
     document.getElementById('btn-hint').addEventListener('click', () => this.giveHint());
 
+    /* 暂停/继续 */
+    document.getElementById('btn-pause').addEventListener('click', () => this.pause());
+    document.getElementById('btn-resume').addEventListener('click', () => this.resume());
+
+    /* 游戏结束弹窗 */
+    document.getElementById('gameover-new-game').addEventListener('click', () => {
+      document.getElementById('gameover-overlay').classList.add('hidden');
+      this.showMenu();
+    });
+
     /* 键盘输入 */
     document.addEventListener('keydown', (e) => {
       if (document.getElementById('menu-overlay').classList.contains('hidden') === false) return;
+      if (document.getElementById('pause-overlay').classList.contains('hidden') === false) {
+        if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') this.resume();
+        return;
+      }
       if (e.key >= '1' && e.key <= '9') this.onNumberInput(parseInt(e.key));
       if (e.key === 'Backspace' || e.key === 'Delete') this.erase();
       if (e.key === 'n' || e.key === 'N') this.toggleNotes();
@@ -1006,6 +1262,7 @@ const Game = {
       if (e.key === 'ArrowDown') this.moveSelection(1, 0);
       if (e.key === 'ArrowLeft') this.moveSelection(0, -1);
       if (e.key === 'ArrowRight') this.moveSelection(0, 1);
+      if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') this.pause();
     });
 
     /* 完成弹窗 */
@@ -1044,21 +1301,20 @@ const Game = {
   /* ---- 数字输入 ---- */
   onNumberInput(num) {
     if (!this.selectedCell) return;
+    if (this.gameOver || this.isPaused) return;
     const { row, col } = this.selectedCell;
-    if (this.puzzle[row][col] !== 0) return; /* 预设格不可改 */
+    if (this.puzzle[row][col] !== 0) return;
 
     if (this.noteMode) {
-      /* 笔记模式 */
       const notes = this.notes[row][col];
       if (notes.has(num)) notes.delete(num);
       else notes.add(num);
-      this.board[row][col] = 0; /* 清除主数字 */
+      this.board[row][col] = 0;
       this.saveState();
       this.render();
       return;
     }
 
-    /* 推入撤销栈 */
     this.history.push({
       row, col,
       prevVal: this.board[row][col],
@@ -1068,14 +1324,19 @@ const Game = {
     this.board[row][col] = num;
     this.notes[row][col].clear();
     this.highlightNum = num;
+
+    if (num !== this.solved[row][col]) {
+      this.loseLife();
+    }
+
     this.saveState();
     this.render();
-    this.checkWin();
+    if (!this.gameOver) this.checkWin();
   },
 
   /* ---- 擦除 ---- */
   erase() {
-    if (!this.selectedCell) return;
+    if (!this.selectedCell || this.gameOver || this.isPaused) return;
     const { row, col } = this.selectedCell;
     if (this.puzzle[row][col] !== 0) return;
 
@@ -1139,7 +1400,8 @@ const Game = {
       notes: this.notes.map(row => row.map(s => [...s])),
       cages: this.cages,
       cageAssigned: this.cageAssigned,
-      elapsed: this.timer.seconds
+      elapsed: this.timer.seconds,
+      lives: this.lives
     };
     saveGame(state);
   },
