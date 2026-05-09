@@ -1280,6 +1280,8 @@ const Game = {
   init() {
     this.buildNumpad();
     this.bindEvents();
+    SoundFX.preload();
+    document.addEventListener('click', () => SoundFX.unlock(), { once: true });
     this.timer.onTick = (s) => {
       document.getElementById('timer-display').textContent = formatTime(s);
     };
@@ -1603,6 +1605,7 @@ const Game = {
       this.loseLife();
       this.saveState();
       this.render();
+      SoundFX.playWrong();
       const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
       if (cell) { cell.classList.add('shake'); setTimeout(() => cell.classList.remove('shake'), 400); }
       return;
@@ -1612,6 +1615,7 @@ const Game = {
     CellAnim.mark(row, col);
     this.render();
     CellAnim.flush(this.cellEls);
+    SoundFX.playCorrect();
     if (!this.gameOver) {
       if (this.checkWin()) return;
       this.autoAdvance(row, col);
@@ -1673,10 +1677,11 @@ const Game = {
     this.history.push({ row: r, col: c, prevVal: this.board[r][c], prevNotes: new Set(this.notes[r][c]) });
     this.board[r][c] = this.solved[r][c];
     this.notes[r][c].clear();
-    this.puzzle[r][c] = this.solved[r][c]; /* 标记为预设，不可改 */
+    this.puzzle[r][c] = this.solved[r][c];
     this.selectedCell = { row: r, col: c };
     this.saveState();
     CellAnim.mark(r, c);
+    SoundFX.playHelp();
     this.render();
     CellAnim.flush(this.cellEls);
     this.checkWin();
@@ -1813,6 +1818,7 @@ const Game = {
     `;
     document.getElementById('win-overlay').classList.remove('hidden');
     Confetti.start();
+    SoundFX.playWin();
     return true;
   },
 
@@ -2123,6 +2129,87 @@ const CellAnim = {
       setTimeout(() => td.classList.remove('pop-anim'), 280);
     }
     this.queue.clear();
+  }
+};
+/* ============================================================
+   音效系统
+   ============================================================ */
+const SoundFX = {
+  _cache: {},
+  _unlocked: false,
+  _winFiles: [
+    'anime-wow-sound-effect.mp3',
+    'bababooey-sound-effect.mp3',
+    'deg-deg_4M6Cojn.mp3',
+    'faaah.mp3',
+    'galaxy-brain-meme.mp3',
+    'gu-gu-ga-ga_Hyvo7id.mp3',
+    'hb128.mp3',
+    'hehehehhehehehhehehheheehehe.mp3',
+    'michael-jackson-hee-hee.mp3',
+    'no-batidao-zxkai.mp3',
+    'scheming-weasel-faster-1-mp3cutn-mp3cut.mp3',
+    'tiki-tiki.mp3',
+    'vine-boom-sound-effect_KT89XIq.mp3',
+    'yang-guang-cai-hong-xiao-bai-ma.mp3',
+    'youre-beautiful-groan-tube.mp3',
+    'yt1s_wU4BGgD.mp3',
+    'yuan-shou-de-fen-nu.mp3'
+  ],
+
+  preload() {
+    const srcs = {
+      yes: 'sounds/click/YES.mp3',
+      no1: 'sounds/click/NO.mp3',
+      no2: 'sounds/click/NO2.mp3',
+      help: 'sounds/click/HELP.mp3'
+    };
+    for (const [key, src] of Object.entries(srcs)) {
+      const a = new Audio(src);
+      a.preload = 'auto';
+      a.volume = 0.6;
+      this._cache[key] = a;
+    }
+    for (const f of this._winFiles) {
+      const a = new Audio('sounds/win/' + f);
+      a.preload = 'auto';
+      a.volume = 0.7;
+      this._cache['win_' + f] = a;
+    }
+  },
+
+  unlock() {
+    if (this._unlocked) return;
+    this._unlocked = true;
+    const a = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRB0YAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRB0YAAAAAAAAAAAAAAAAAAAA');
+    a.volume = 0.01;
+    a.play().catch(() => {});
+  },
+
+  _play(audio) {
+    if (!this._unlocked) return;
+    const clone = audio.cloneNode();
+    clone.volume = audio.volume;
+    clone.play().catch(() => {});
+  },
+
+  playCorrect() {
+    if (Math.random() < 0.3) this._play(this._cache.yes);
+  },
+
+  playWrong() {
+    if (Math.random() < 0.3) {
+      this._play(Math.random() < 0.5 ? this._cache.no1 : this._cache.no2);
+    }
+  },
+
+  playHelp() {
+    this._play(this._cache.help);
+  },
+
+  playWin() {
+    const f = this._winFiles[Math.floor(Math.random() * this._winFiles.length)];
+    this._play(this._cache['win_' + f]);
   }
 };
 </script>
