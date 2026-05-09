@@ -261,6 +261,29 @@
       color: var(--danger) !important;
     }
 
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-4px); }
+      40% { transform: translateX(4px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+
+    .cell.shake {
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes heart-break {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.3); }
+      60% { transform: scale(0.8); opacity: 0.5; }
+      100% { transform: scale(1); opacity: 0.2; filter: grayscale(1); }
+    }
+
+    #lives-display .heart.breaking {
+      animation: heart-break 0.5s ease forwards;
+    }
+
     .cell:hover {
       background-color: rgba(91, 155, 213, 0.1);
     }
@@ -275,6 +298,9 @@
       position: absolute;
       top: 0;
       left: 0;
+      padding-top: 2px;
+      padding-left: 2px;
+      box-sizing: border-box;
     }
 
     .cell .notes-grid span {
@@ -478,6 +504,18 @@
       border-color: var(--primary);
     }
 
+    .diff-btn:hover .diff-hint,
+    .diff-btn:active .diff-hint {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .diff-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+      transition: color var(--transition);
+    }
+
     /* ============================
        完成弹窗
        ============================ */
@@ -519,6 +557,27 @@
       font-size: 14px;
       color: var(--text-muted);
       margin-bottom: 20px;
+    }
+
+    #win-stats {
+      margin-bottom: 20px;
+    }
+
+    #win-stats .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+      border-bottom: 1px solid var(--surface-2);
+    }
+
+    #win-stats .stat-row .stat-label {
+      color: var(--text-muted);
+    }
+
+    #win-stats .stat-row .stat-value {
+      color: var(--text);
+      font-weight: 600;
     }
 
     #win-content button {
@@ -742,9 +801,9 @@
     <div id="menu-content">
       <h2>Sudoku Pro</h2>
       <p class="subtitle">选择难度开始游戏</p>
-      <button class="diff-btn" data-diff="easy">简单 (Easy)</button>
-      <button class="diff-btn" data-diff="medium">中等 (Medium)</button>
-      <button class="diff-btn" data-diff="hard">困难 (Hard)</button>
+      <button class="diff-btn" data-diff="easy">简单<span class="diff-hint"> · 5❤️ · 约45格</span></button>
+      <button class="diff-btn" data-diff="medium">中等<span class="diff-hint"> · 4❤️ · 约29格</span></button>
+      <button class="diff-btn" data-diff="hard">困难<span class="diff-hint"> · 3❤️ · 约15格</span></button>
     </div>
   </div>
 
@@ -752,7 +811,7 @@
   <div id="win-overlay" class="hidden">
     <div id="win-content">
       <h2>🎉 恭喜完成！</h2>
-      <p id="win-time"></p>
+      <div id="win-stats"></div>
       <button id="win-new-game">新游戏</button>
     </div>
   </div>
@@ -933,7 +992,36 @@ function generateCages(solved) {
     if (assigned[r][c] !== -1) remaining.splice(i, 1);
   }
 
-  return { cages, assigned };
+  /* 构建笼子邻接图并着色 */
+  const adj = Array.from({ length: cages.length }, () => new Set());
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const id = assigned[r][c];
+      if (r + 1 < SIZE && assigned[r + 1][c] !== id) {
+        adj[id].add(assigned[r + 1][c]);
+        adj[assigned[r + 1][c]].add(id);
+      }
+      if (c + 1 < SIZE && assigned[r][c + 1] !== id) {
+        adj[id].add(assigned[r][c + 1]);
+        adj[assigned[r][c + 1]].add(id);
+      }
+    }
+  }
+
+  const numColors = 5;
+  const cageColors = new Array(cages.length).fill(-1);
+  const order = cages.map((_, i) => i).sort((a, b) => adj[b].size - adj[a].size);
+  for (const id of order) {
+    const usedColors = new Set();
+    for (const neighbor of adj[id]) {
+      if (cageColors[neighbor] !== -1) usedColors.add(cageColors[neighbor]);
+    }
+    for (let color = 0; color < numColors; color++) {
+      if (!usedColors.has(color)) { cageColors[id] = color; break; }
+    }
+  }
+
+  return { cages, assigned, cageColors };
 }
 
 /* ============================================================
@@ -1032,6 +1120,7 @@ const Game = {
   cages: null,            // 杀手模式笼子数据
   cageAssigned: null,     // [row][col] -> cageId
   cageBorders: null,
+  cageColors: null,       // [cageId] -> colorIndex
   selectedCell: null,     // { row, col }
   noteMode: false,
   highlightNum: 0,        // 当前高亮数字 (0=无)
@@ -1068,10 +1157,15 @@ const Game = {
         this.cages = save.cages;
         this.cageAssigned = save.cageAssigned;
         this.cageBorders = getCageBorders(this.cageAssigned);
+        this.cageColors = save.cageColors || null;
+        if (!this.cageColors && this.cages) {
+          this.cageColors = this.cages.map((_, i) => i % 5);
+        }
       } else {
         this.cages = null;
         this.cageAssigned = null;
         this.cageBorders = null;
+        this.cageColors = null;
       }
       const dm = DIFFICULTY_MAP[this.difficulty];
       this.maxLives = dm.lives;
@@ -1082,6 +1176,7 @@ const Game = {
       this.timer.start();
       this.updateModeButtons();
       this.renderLives();
+      this.buildBoard();
       this.render();
     } else {
       this.showMenu();
@@ -1102,7 +1197,6 @@ const Game = {
   startNewGame(difficulty) {
     this.difficulty = difficulty;
     this.hideMenu();
-    this.timer.reset();
     this.history = [];
     this.highlightNum = 0;
     this.noteMode = false;
@@ -1120,10 +1214,11 @@ const Game = {
     this.notes = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => new Set()));
 
     if (this.mode === 'killer') {
-      const { cages, assigned } = generateCages(this.solved);
+      const { cages, assigned, cageColors } = generateCages(this.solved);
       this.cages = cages;
       this.cageAssigned = assigned;
       this.cageBorders = getCageBorders(assigned);
+      this.cageColors = cageColors;
       for (let r = 0; r < SIZE; r++)
         for (let c = 0; c < SIZE; c++)
           this.puzzle[r][c] = 0;
@@ -1132,6 +1227,7 @@ const Game = {
       this.cages = null;
       this.cageAssigned = null;
       this.cageBorders = null;
+      this.cageColors = null;
     }
 
     this.timer.reset();
@@ -1139,6 +1235,7 @@ const Game = {
     this.updateDifficultyLabel();
     this.updateModeButtons();
     this.renderLives();
+    this.buildBoard();
     this.render();
     this.saveState();
   },
@@ -1176,10 +1273,34 @@ const Game = {
     }
   },
 
+  /* ---- 自动跳到下一个空格 ---- */
+  autoAdvance(row, col) {
+    for (let c = col + 1; c < SIZE; c++) {
+      if (this.puzzle[row][c] === 0 && this.board[row][c] === 0) {
+        this.selectCell(row, c);
+        return;
+      }
+    }
+    for (let r = row + 1; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (this.puzzle[r][c] === 0 && this.board[r][c] === 0) {
+          this.selectCell(r, c);
+          return;
+        }
+      }
+    }
+  },
+
   /* ---- 扣血 ---- */
   loseLife() {
+    const prevLives = this.lives;
     this.lives--;
     this.renderLives();
+    const hearts = document.querySelectorAll('#lives-display .heart');
+    if (hearts[prevLives - 1]) {
+      hearts[prevLives - 1].classList.add('breaking');
+      setTimeout(() => hearts[prevLives - 1].classList.remove('breaking'), 500);
+    }
     if (this.lives <= 0) {
       this.gameOver = true;
       this.timer.stop();
@@ -1258,10 +1379,10 @@ const Game = {
       if (e.key === 'Backspace' || e.key === 'Delete') this.erase();
       if (e.key === 'n' || e.key === 'N') this.toggleNotes();
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); this.undo(); }
-      if (e.key === 'ArrowUp') this.moveSelection(-1, 0);
-      if (e.key === 'ArrowDown') this.moveSelection(1, 0);
-      if (e.key === 'ArrowLeft') this.moveSelection(0, -1);
-      if (e.key === 'ArrowRight') this.moveSelection(0, 1);
+      if (e.key === 'ArrowUp') { e.preventDefault(); this.moveSelection(-1, 0); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.moveSelection(1, 0); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); this.moveSelection(0, -1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); this.moveSelection(0, 1); }
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') this.pause();
     });
 
@@ -1315,10 +1436,13 @@ const Game = {
       return;
     }
 
+    if (this.board[row][col] === num) return;
+
     this.history.push({
       row, col,
       prevVal: this.board[row][col],
-      prevNotes: new Set(this.notes[row][col])
+      prevNotes: new Set(this.notes[row][col]),
+      prevLives: this.lives
     });
 
     this.board[row][col] = num;
@@ -1327,11 +1451,19 @@ const Game = {
 
     if (num !== this.solved[row][col]) {
       this.loseLife();
+      this.saveState();
+      this.render();
+      const cell = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+      if (cell) { cell.classList.add('shake'); setTimeout(() => cell.classList.remove('shake'), 400); }
+      return;
     }
 
     this.saveState();
     this.render();
-    if (!this.gameOver) this.checkWin();
+    if (!this.gameOver) {
+      if (this.checkWin()) return;
+      this.autoAdvance(row, col);
+    }
   },
 
   /* ---- 擦除 ---- */
@@ -1339,6 +1471,7 @@ const Game = {
     if (!this.selectedCell || this.gameOver || this.isPaused) return;
     const { row, col } = this.selectedCell;
     if (this.puzzle[row][col] !== 0) return;
+    if (this.board[row][col] === 0 && this.notes[row][col].size === 0) return;
 
     this.history.push({
       row, col,
@@ -1354,24 +1487,30 @@ const Game = {
 
   /* ---- 撤销 ---- */
   undo() {
+    if (this.gameOver || this.isPaused) return;
     if (this.history.length === 0) return;
     const last = this.history.pop();
     this.board[last.row][last.col] = last.prevVal;
     this.notes[last.row][last.col] = last.prevNotes;
     this.selectedCell = { row: last.row, col: last.col };
+    if (last.prevLives !== undefined && last.prevLives !== this.lives) {
+      this.lives = last.prevLives;
+      this.renderLives();
+    }
     this.saveState();
     this.render();
   },
 
   /* ---- 笔记模式切换 ---- */
   toggleNotes() {
+    if (this.gameOver || this.isPaused) return;
     this.noteMode = !this.noteMode;
     document.getElementById('btn-notes').classList.toggle('active', this.noteMode);
   },
 
   /* ---- 提示 ---- */
   giveHint() {
-    /* 找一个空格，填入正确数字 */
+    if (this.gameOver || this.isPaused) return;
     const empties = [];
     for (let r = 0; r < SIZE; r++)
       for (let c = 0; c < SIZE; c++)
@@ -1400,6 +1539,7 @@ const Game = {
       notes: this.notes.map(row => row.map(s => [...s])),
       cages: this.cages,
       cageAssigned: this.cageAssigned,
+      cageColors: this.cageColors,
       elapsed: this.timer.seconds,
       lives: this.lives
     };
@@ -1500,13 +1640,25 @@ const Game = {
   checkWin() {
     for (let r = 0; r < SIZE; r++)
       for (let c = 0; c < SIZE; c++)
-        if (this.board[r][c] !== this.solved[r][c]) return;
+        if (this.board[r][c] !== this.solved[r][c]) return false;
 
-    /* 胜利 */
     this.timer.stop();
     clearSave();
-    document.getElementById('win-time').textContent = `用时：${formatTime(this.timer.seconds)}`;
+
+    const modeName = this.mode === 'killer' ? '杀手数独' : '经典数独';
+    const diffName = { easy: '简单', medium: '中等', hard: '困难' }[this.difficulty] || '';
+    const totalCells = this.mode === 'killer' ? 81 : 81;
+    const filledCells = this.board.reduce((sum, row) => sum + row.filter(v => v > 0).length, 0);
+
+    document.getElementById('win-stats').innerHTML = `
+      <div class="stat-row"><span class="stat-label">模式</span><span class="stat-value">${modeName}</span></div>
+      <div class="stat-row"><span class="stat-label">难度</span><span class="stat-value">${diffName}</span></div>
+      <div class="stat-row"><span class="stat-label">用时</span><span class="stat-value">${formatTime(this.timer.seconds)}</span></div>
+      <div class="stat-row"><span class="stat-label">剩余血量</span><span class="stat-value">${'❤️'.repeat(this.lives)}</span></div>
+      <div class="stat-row"><span class="stat-label">填入格数</span><span class="stat-value">${filledCells}/${totalCells}</span></div>
+    `;
     document.getElementById('win-overlay').classList.remove('hidden');
+    return true;
   },
 
   /* ---- 计算每种数字已完成数 ---- */
@@ -1519,37 +1671,25 @@ const Game = {
     return counts;
   },
 
-  /* ---- 渲染 ---- */
-  render() {
+  /* ---- 构建棋盘 DOM（只调用一次） ---- */
+  buildBoard() {
     const tbody = document.getElementById('board-tbody');
     tbody.innerHTML = '';
-
-    const conflicts = this.getConflicts();
-    const cageSumViolations = this.getCageSumViolations();
-    const selectedVal = this.selectedCell ? this.board[this.selectedCell.row][this.selectedCell.col] : 0;
-    const counts = this.getDigitCounts();
-
-    /* 更新数字键盘高亮 & 完成状态 */
-    document.querySelectorAll('.num-btn').forEach(btn => {
-      const n = parseInt(btn.dataset.num);
-      btn.classList.toggle('highlighted', n === this.highlightNum && this.highlightNum > 0);
-      btn.classList.toggle('completed', counts[n] >= 9);
-    });
+    this.cellEls = [];
 
     for (let r = 0; r < SIZE; r++) {
       const tr = document.createElement('tr');
       tr.className = 'row';
+      this.cellEls[r] = [];
       for (let c = 0; c < SIZE; c++) {
         const td = document.createElement('td');
         td.className = 'cell';
         td.dataset.row = r;
         td.dataset.col = c;
 
-        /* 宫格边界 */
         if ((c + 1) % GROUP === 0 && c < SIZE - 1) td.classList.add('group-right');
         if ((r + 1) % GROUP === 0 && r < SIZE - 1) td.classList.add('group-bottom');
 
-        /* 杀手笼子样式 */
         if (this.mode === 'killer' && this.cageBorders) {
           const b = this.cageBorders[r][c];
           if (b.top) td.classList.add('cage-top');
@@ -1557,11 +1697,9 @@ const Game = {
           if (b.left) td.classList.add('cage-left');
           if (b.right) td.classList.add('cage-right');
 
-          /* 笼子交替底色 */
           const cageId = this.cageAssigned[r][c];
-          td.classList.add('cage-bg-' + (cageId % 5));
+          td.classList.add('cage-bg-' + (this.cageColors ? this.cageColors[cageId] : cageId % 5));
 
-          /* 和值标签：只在笼子的最上最左格子显示 */
           const cage = this.cages[cageId];
           const minRow = Math.min(...cage.cells.map(([cr]) => cr));
           const minColInMinRow = Math.min(...cage.cells.filter(([cr]) => cr === minRow).map(([, cc]) => cc));
@@ -1573,45 +1711,81 @@ const Game = {
           }
         }
 
-        /* 内容 */
-        const val = this.board[r][c];
-        const isPrefilled = this.puzzle[r][c] !== 0;
-
-        if (val > 0) {
-          td.textContent = val;
-          td.classList.add(isPrefilled ? 'prefilled' : 'user-entry');
-        } else if (this.notes[r][c].size > 0) {
-          /* 渲染笔记 */
-          const grid = document.createElement('div');
-          grid.className = 'notes-grid';
-          for (let n = 1; n <= 9; n++) {
-            const sp = document.createElement('span');
-            sp.textContent = this.notes[r][c].has(n) ? n : '';
-            grid.appendChild(sp);
-          }
-          td.appendChild(grid);
-        }
-
-        /* 冲突高亮 */
-        if (conflicts.has(`${r},${c}`)) td.classList.add('conflict');
-        if (cageSumViolations.has(`${r},${c}`)) td.classList.add('cage-sum-violation');
-
-        /* 选中 & 同数字高亮 & 行列宫高亮 */
-        if (this.selectedCell) {
-          const sr = this.selectedCell.row;
-          const sc = this.selectedCell.col;
-          if (r === sr && c === sc) td.classList.add('selected');
-          if (selectedVal > 0 && val === selectedVal && !(r === sr && c === sc)) td.classList.add('highlight-same');
-          if (r === sr) td.classList.add('highlight-row');
-          if (c === sc) td.classList.add('highlight-col');
-          const sameGroup = Math.floor(r / GROUP) === Math.floor(sr / GROUP) && Math.floor(c / GROUP) === Math.floor(sc / GROUP);
-          if (sameGroup && !(r === sr && c === sc)) td.classList.add('highlight-group');
-        }
-
         td.addEventListener('click', () => this.selectCell(r, c));
+        this.cellEls[r][c] = td;
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
+    }
+  },
+
+  /* ---- 渲染（增量更新） ---- */
+  render() {
+    const conflicts = this.getConflicts();
+    const cageSumViolations = this.getCageSumViolations();
+    const selectedVal = this.selectedCell ? this.board[this.selectedCell.row][this.selectedCell.col] : 0;
+    const counts = this.getDigitCounts();
+    const sr = this.selectedCell ? this.selectedCell.row : -1;
+    const sc = this.selectedCell ? this.selectedCell.col : -1;
+
+    document.querySelectorAll('.num-btn').forEach(btn => {
+      const n = parseInt(btn.dataset.num);
+      btn.classList.toggle('highlighted', n === this.highlightNum && this.highlightNum > 0);
+      btn.classList.toggle('completed', counts[n] >= 9);
+    });
+
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const td = this.cellEls[r][c];
+        const val = this.board[r][c];
+        const isPrefilled = this.puzzle[r][c] !== 0;
+        const isConflict = conflicts.has(`${r},${c}`);
+        const isCageViolation = cageSumViolations.has(`${r},${c}`);
+        const sameGroup = sr >= 0 && Math.floor(r / GROUP) === Math.floor(sr / GROUP) && Math.floor(c / GROUP) === Math.floor(sc / GROUP);
+
+        const newClass = 'cell'
+          + ((c + 1) % GROUP === 0 && c < SIZE - 1 ? ' group-right' : '')
+          + ((r + 1) % GROUP === 0 && r < SIZE - 1 ? ' group-bottom' : '')
+          + (this.mode === 'killer' && this.cageBorders
+              ? (this.cageBorders[r][c].top ? ' cage-top' : '')
+                + (this.cageBorders[r][c].bottom ? ' cage-bottom' : '')
+                + (this.cageBorders[r][c].left ? ' cage-left' : '')
+                + (this.cageBorders[r][c].right ? ' cage-right' : '')
+                + (' cage-bg-' + (this.cageColors ? this.cageColors[this.cageAssigned[r][c]] : this.cageAssigned[r][c] % 5))
+              : '')
+          + (val > 0 ? (isPrefilled ? ' prefilled' : ' user-entry') : '')
+          + (isConflict ? ' conflict' : '')
+          + (isCageViolation ? ' cage-sum-violation' : '')
+          + (sr >= 0 && r === sr && c === sc ? ' selected' : '')
+          + (sr >= 0 && selectedVal > 0 && val === selectedVal && !(r === sr && c === sc) ? ' highlight-same' : '')
+          + (sr >= 0 && r === sr ? ' highlight-row' : '')
+          + (sr >= 0 && c === sc ? ' highlight-col' : '')
+          + (sr >= 0 && sameGroup && !(r === sr && c === sc) ? ' highlight-group' : '');
+        td.className = newClass;
+
+        if (val > 0) {
+          td.textContent = val;
+        } else if (this.notes[r][c].size > 0) {
+          let grid = td.querySelector('.notes-grid');
+          if (!grid) {
+            grid = document.createElement('div');
+            grid.className = 'notes-grid';
+            for (let n = 1; n <= 9; n++) {
+              const sp = document.createElement('span');
+              sp.dataset.note = n;
+              grid.appendChild(sp);
+            }
+            td.appendChild(grid);
+          }
+          for (let n = 1; n <= 9; n++) {
+            grid.children[n - 1].textContent = this.notes[r][c].has(n) ? n : '';
+          }
+        } else {
+          td.textContent = '';
+          const grid = td.querySelector('.notes-grid');
+          if (grid) grid.remove();
+        }
+      }
     }
   }
 };
