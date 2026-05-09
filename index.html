@@ -240,6 +240,10 @@
       background-color: rgba(91, 155, 213, 0.06);
     }
 
+    .cell.dim {
+      opacity: 0.35;
+    }
+
     .cell.selected.highlight-row,
     .cell.selected.highlight-col,
     .cell.selected.highlight-group,
@@ -403,23 +407,18 @@
        数字键盘
        ============================ */
     #numpad {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      justify-items: center;
-      gap: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
       width: 100%;
       max-width: 360px;
       margin-bottom: 16px;
     }
 
-    #numpad .num-btn:nth-child(6) {
-      grid-column: 2;
-    }
-
     .num-btn {
-      width: 100%;
-      aspect-ratio: 1;
-      max-width: 56px;
+      width: 52px;
+      height: 52px;
       font-size: 20px;
       font-weight: 600;
       border: 1px solid var(--border);
@@ -431,6 +430,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      flex-shrink: 0;
     }
 
     .num-btn:hover,
@@ -721,7 +721,7 @@
       .action-btn { min-width: 44px; padding: 4px 4px; }
       .action-btn svg { width: 18px; height: 18px; }
       .action-btn .label { font-size: 9px; }
-      .num-btn { max-width: 40px; font-size: 16px; }
+      .num-btn { width: 38px; height: 38px; font-size: 16px; }
     }
 
     @media (min-width: 361px) and (max-width: 400px) {
@@ -747,7 +747,7 @@
       }
       .cell-content .notes-grid span { font-size: 11px; }
       .cell .cage-sum { font-size: 11px; }
-      .num-btn { max-width: 64px; font-size: 22px; }
+      .num-btn { width: 60px; height: 60px; font-size: 22px; }
     }
 
     @media (min-width: 768px) {
@@ -1781,7 +1781,8 @@ const Game = {
           + (sr >= 0 && selectedVal > 0 && val === selectedVal && !(r === sr && c === sc) ? ' highlight-same' : '')
           + (sr >= 0 && r === sr ? ' highlight-row' : '')
           + (sr >= 0 && c === sc ? ' highlight-col' : '')
-          + (sr >= 0 && sameGroup && !(r === sr && c === sc) ? ' highlight-group' : '');
+          + (sr >= 0 && sameGroup && !(r === sr && c === sc) ? ' highlight-group' : '')
+          + (sr >= 0 && !(r === sr) && !(c === sc) && !sameGroup ? ' dim' : '');
         td.className = newClass;
 
         if (val > 0) {
