@@ -288,22 +288,30 @@
       background-color: rgba(91, 155, 213, 0.1);
     }
 
+    .cell-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
     /* 笔记模式小数字 */
-    .cell .notes-grid {
+    .cell-content .notes-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       grid-template-rows: repeat(3, 1fr);
       width: 100%;
       height: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
       padding-top: 2px;
       padding-left: 2px;
       box-sizing: border-box;
     }
 
-    .cell .notes-grid span {
+    .cell-content .notes-grid span {
       display: flex;
       justify-content: center;
       align-items: center;
@@ -703,7 +711,7 @@
         --font-size: 14px;
       }
       body { padding: 8px; }
-      .cell .notes-grid span { font-size: 7px; }
+      .cell-content .notes-grid span { font-size: 7px; }
       .cell .cage-sum { font-size: 8px; top: 1px; left: 2px; }
       .action-btn { min-width: 44px; padding: 4px 4px; }
       .action-btn svg { width: 18px; height: 18px; }
@@ -716,7 +724,7 @@
         --cell-size: 38px;
         --font-size: 16px;
       }
-      .cell .notes-grid span { font-size: 8px; }
+      .cell-content .notes-grid span { font-size: 8px; }
       .cell .cage-sum { font-size: 9px; }
     }
 
@@ -732,7 +740,7 @@
         --cell-size: 50px;
         --font-size: 20px;
       }
-      .cell .notes-grid span { font-size: 11px; }
+      .cell-content .notes-grid span { font-size: 11px; }
       .cell .cage-sum { font-size: 11px; }
       .num-btn { min-width: 42px; font-size: 22px; }
     }
@@ -1676,11 +1684,13 @@ const Game = {
     const tbody = document.getElementById('board-tbody');
     tbody.innerHTML = '';
     this.cellEls = [];
+    this.contentEls = [];
 
     for (let r = 0; r < SIZE; r++) {
       const tr = document.createElement('tr');
       tr.className = 'row';
       this.cellEls[r] = [];
+      this.contentEls[r] = [];
       for (let c = 0; c < SIZE; c++) {
         const td = document.createElement('td');
         td.className = 'cell';
@@ -1711,8 +1721,13 @@ const Game = {
           }
         }
 
+        const content = document.createElement('div');
+        content.className = 'cell-content';
+        td.appendChild(content);
+
         td.addEventListener('click', () => this.selectCell(r, c));
         this.cellEls[r][c] = td;
+        this.contentEls[r][c] = content;
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
@@ -1737,6 +1752,7 @@ const Game = {
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const td = this.cellEls[r][c];
+        const content = this.contentEls[r][c];
         const val = this.board[r][c];
         const isPrefilled = this.puzzle[r][c] !== 0;
         const isConflict = conflicts.has(`${r},${c}`);
@@ -1764,9 +1780,12 @@ const Game = {
         td.className = newClass;
 
         if (val > 0) {
-          td.textContent = val;
+          content.textContent = val;
+          const grid = content.querySelector('.notes-grid');
+          if (grid) grid.remove();
         } else if (this.notes[r][c].size > 0) {
-          let grid = td.querySelector('.notes-grid');
+          content.textContent = '';
+          let grid = content.querySelector('.notes-grid');
           if (!grid) {
             grid = document.createElement('div');
             grid.className = 'notes-grid';
@@ -1775,14 +1794,14 @@ const Game = {
               sp.dataset.note = n;
               grid.appendChild(sp);
             }
-            td.appendChild(grid);
+            content.appendChild(grid);
           }
           for (let n = 1; n <= 9; n++) {
             grid.children[n - 1].textContent = this.notes[r][c].has(n) ? n : '';
           }
         } else {
-          td.textContent = '';
-          const grid = td.querySelector('.notes-grid');
+          content.textContent = '';
+          const grid = content.querySelector('.notes-grid');
           if (grid) grid.remove();
         }
       }
