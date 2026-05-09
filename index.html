@@ -256,11 +256,11 @@
     }
 
     .cell.group-right {
-      border-right: 3px solid #4a5568 !important;
+      border-right: 2px solid #a0a8b4 !important;
     }
 
     .cell.group-bottom {
-      border-bottom: 3px solid #4a5568 !important;
+      border-bottom: 2px solid #a0a8b4 !important;
     }
 
     .cell.selected {
@@ -378,10 +378,10 @@
     /* ============================
        杀手数独笼子样式
        ============================ */
-    .cell.cage-top { border-top: 1.5px solid #c08030; }
-    .cell.cage-bottom { border-bottom: 1.5px solid #c08030; }
-    .cell.cage-left { border-left: 1.5px solid #c08030; }
-    .cell.cage-right { border-right: 1.5px solid #c08030; }
+    .cell.cage-top { border-top: 1.5px dashed #c08030; }
+    .cell.cage-bottom { border-bottom: 1.5px dashed #c08030; }
+    .cell.cage-left { border-left: 1.5px dashed #c08030; }
+    .cell.cage-right { border-right: 1.5px dashed #c08030; }
 
     .cell .cage-sum {
       position: absolute;
@@ -504,8 +504,21 @@
     }
 
     .num-btn.completed {
-      opacity: 0.3;
+      opacity: 0.35;
       pointer-events: none;
+      position: relative;
+    }
+
+    .num-btn.completed::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--success);
+      opacity: 0.9;
     }
 
     /* ============================
@@ -796,6 +809,33 @@
       font-weight: 600;
       cursor: pointer;
       box-shadow: 0 4px 16px rgba(91,155,213,0.25);
+    }
+
+    /* ============================
+       格子填入动画
+       ============================ */
+    @keyframes cell-pop {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.2); }
+      60% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+
+    .cell.pop-anim .cell-content {
+      animation: cell-pop 0.25s ease-out;
+    }
+
+    /* ============================
+       胜利撒花动画
+       ============================ */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 300;
     }
 
     /* ============================
@@ -1291,6 +1331,7 @@ const Game = {
   /* ---- 菜单 ---- */
   showMenu() {
     this.timer.stop();
+    Confetti.stop();
     document.getElementById('menu-overlay').classList.remove('hidden');
   },
 
@@ -1568,7 +1609,9 @@ const Game = {
     }
 
     this.saveState();
+    CellAnim.mark(row, col);
     this.render();
+    CellAnim.flush(this.cellEls);
     if (!this.gameOver) {
       if (this.checkWin()) return;
       this.autoAdvance(row, col);
@@ -1633,7 +1676,9 @@ const Game = {
     this.puzzle[r][c] = this.solved[r][c]; /* 标记为预设，不可改 */
     this.selectedCell = { row: r, col: c };
     this.saveState();
+    CellAnim.mark(r, c);
     this.render();
+    CellAnim.flush(this.cellEls);
     this.checkWin();
   },
 
@@ -1767,6 +1812,7 @@ const Game = {
       <div class="stat-row"><span class="stat-label">填入格数</span><span class="stat-value">${filledCells}/${totalCells}</span></div>
     `;
     document.getElementById('win-overlay').classList.remove('hidden');
+    Confetti.start();
     return true;
   },
 
@@ -1953,6 +1999,132 @@ if ('serviceWorker' in navigator) {
    启动
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => Game.init());
+
+const Confetti = {
+  canvas: null,
+  ctx: null,
+  pieces: [],
+  raf: null,
+  running: false,
+
+  start() {
+    if (!this.canvas) {
+      this.canvas = document.createElement('canvas');
+      this.canvas.id = 'confetti-canvas';
+      document.body.appendChild(this.canvas);
+      this.ctx = this.canvas.getContext('2d');
+    }
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+    this.pieces = [];
+    this.running = true;
+
+    const colors = [
+      '#ff6b6b','#feca57','#48dbfb','#ff9ff3','#54a0ff',
+      '#5f27cd','#01a3a4','#f368e0','#ff9f43','#00d2d3',
+      '#2ed573','#ffa502','#7bed9f','#70a1ff','#eccc68'
+    ];
+    const shapes = ['rect','circle','star','ribbon'];
+
+    for (let i = 0; i < 180; i++) {
+      const shape = shapes[Math.floor(Math.random() * shapes.length)];
+      this.pieces.push({
+        x: Math.random() * this.canvas.width,
+        y: Math.random() * -this.canvas.height,
+        w: 6 + Math.random() * 8,
+        h: 4 + Math.random() * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        shape,
+        vx: (Math.random() - 0.5) * 3,
+        vy: 2 + Math.random() * 4,
+        rotation: Math.random() * 360,
+        rotSpeed: (Math.random() - 0.5) * 12,
+        opacity: 0.7 + Math.random() * 0.3,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 0.02 + Math.random() * 0.04
+      });
+    }
+    this._loop();
+  },
+
+  _loop() {
+    if (!this.running) return;
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    for (const p of this.pieces) {
+      p.wobble += p.wobbleSpeed;
+      p.x += p.vx + Math.sin(p.wobble) * 1.5;
+      p.y += p.vy;
+      p.rotation += p.rotSpeed;
+      p.vy += 0.04;
+
+      this.ctx.save();
+      this.ctx.translate(p.x, p.y);
+      this.ctx.rotate(p.rotation * Math.PI / 180);
+      this.ctx.globalAlpha = p.opacity;
+      this.ctx.fillStyle = p.color;
+
+      if (p.shape === 'rect') {
+        this.ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      } else if (p.shape === 'circle') {
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+        this.ctx.fill();
+      } else if (p.shape === 'star') {
+        this._drawStar(0, 0, 5, p.w / 2, p.w / 4);
+      } else {
+        this.ctx.fillRect(-p.w / 2, -1, p.w, 2);
+      }
+
+      this.ctx.restore();
+    }
+    this.pieces = this.pieces.filter(p => p.y < this.canvas.height + 50);
+    if (this.pieces.length > 0) {
+      this.raf = requestAnimationFrame(() => this._loop());
+    } else {
+      this.stop();
+    }
+  },
+
+  _drawStar(cx, cy, spikes, outerR, innerR) {
+    let rot = -Math.PI / 2;
+    const step = Math.PI / spikes;
+    this.ctx.beginPath();
+    for (let i = 0; i < spikes; i++) {
+      this.ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+      rot += step;
+      this.ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+      rot += step;
+    }
+    this.ctx.closePath();
+    this.ctx.fill();
+  },
+
+  stop() {
+    this.running = false;
+    if (this.raf) cancelAnimationFrame(this.raf);
+    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+};
+
+const CellAnim = {
+  queue: new Set(),
+
+  mark(row, col) {
+    this.queue.add(`${row},${col}`);
+  },
+
+  flush(cellEls) {
+    for (const key of this.queue) {
+      const [r, c] = key.split(',').map(Number);
+      const td = cellEls[r][c];
+      td.classList.remove('pop-anim');
+      void td.offsetWidth;
+      td.classList.add('pop-anim');
+      setTimeout(() => td.classList.remove('pop-anim'), 280);
+    }
+    this.queue.clear();
+  }
+};
 </script>
 </body>
 </html>
