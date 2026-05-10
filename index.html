@@ -282,14 +282,14 @@
     }
 
     .cell.dim {
-      filter: grayscale(0.25) brightness(0.92);
+      filter: grayscale(0.15) brightness(0.95);
     }
 
     .cell.dim::after {
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(180, 195, 215, 0.45);
+      background: rgba(195, 208, 225, 0.3);
       pointer-events: none;
       z-index: 1;
     }
@@ -821,6 +821,15 @@
 
     .cell.pop-anim .cell-content {
       animation: cell-pop 0.25s ease-out;
+    }
+
+    @keyframes cell-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(0.96); }
+    }
+
+    .cell.pulse-match .cell-content {
+      animation: cell-pulse 1.2s ease-in-out infinite;
     }
 
     /* ============================
@@ -1921,6 +1930,7 @@ const Game = {
           + (isCageViolation ? ' cage-sum-violation' : '')
           + (sr >= 0 && r === sr && c === sc ? ' selected' : '')
           + (sr >= 0 && selectedVal > 0 && val === selectedVal && !(r === sr && c === sc) ? ' highlight-same' : '')
+          + (sr >= 0 && selectedVal > 0 && !(r === sr && c === sc) && (val === selectedVal || (val === 0 && this.notes[r][c].has(selectedVal))) ? ' pulse-match' : '')
           + (isDim[r][c] ? ' highlight-area dim' : '');
         td.className = newClass;
 
