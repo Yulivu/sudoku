@@ -282,14 +282,14 @@
     }
 
     .cell.dim {
-      filter: grayscale(0.15) brightness(0.95);
+      filter: grayscale(0.1) brightness(0.97);
     }
 
     .cell.dim::after {
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(195, 208, 225, 0.3);
+      background: rgba(200, 210, 225, 0.2);
       pointer-events: none;
       z-index: 1;
     }
@@ -824,14 +824,12 @@
     }
 
     @keyframes cell-pulse {
-      0%, 100% { outline-color: transparent; }
-      50% { outline-color: rgba(91, 155, 213, 0.6); }
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(0.85) saturate(0.7); }
     }
 
     .cell.pulse-match {
-      outline: 2px solid transparent;
-      outline-offset: -2px;
-      animation: cell-pulse 1s ease-in-out infinite;
+      animation: cell-pulse 0.9s ease-in-out infinite;
     }
 
     /* ============================
