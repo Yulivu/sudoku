@@ -824,12 +824,14 @@
     }
 
     @keyframes cell-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(0.96); }
+      0%, 100% { outline-color: transparent; }
+      50% { outline-color: rgba(91, 155, 213, 0.6); }
     }
 
-    .cell.pulse-match .cell-content {
-      animation: cell-pulse 1.2s ease-in-out infinite;
+    .cell.pulse-match {
+      outline: 2px solid transparent;
+      outline-offset: -2px;
+      animation: cell-pulse 1s ease-in-out infinite;
     }
 
     /* ============================
