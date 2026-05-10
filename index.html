@@ -986,6 +986,7 @@
     </div>
   </div>
 
+<script src="sounds.js"></script>
 <script>
 /* ============================================================
    全局常量与工具
@@ -2126,44 +2127,17 @@ const CellAnim = {
 const SoundFX = {
   _cache: {},
   _unlocked: false,
-  _winFiles: [
-    'anime-wow-sound-effect.mp3',
-    'bababooey-sound-effect.mp3',
-    'deg-deg_4M6Cojn.mp3',
-    'faaah.mp3',
-    'galaxy-brain-meme.mp3',
-    'gu-gu-ga-ga_Hyvo7id.mp3',
-    'hb128.mp3',
-    'hehehehhehehehhehehheheehehe.mp3',
-    'michael-jackson-hee-hee.mp3',
-    'no-batidao-zxkai.mp3',
-    'scheming-weasel-faster-1-mp3cutn-mp3cut.mp3',
-    'tiki-tiki.mp3',
-    'vine-boom-sound-effect_KT89XIq.mp3',
-    'yang-guang-cai-hong-xiao-bai-ma.mp3',
-    'youre-beautiful-groan-tube.mp3',
-    'yt1s_wU4BGgD.mp3',
-    'yuan-shou-de-fen-nu.mp3'
-  ],
+  _groups: window.__SOUNDS__ || {},
 
   preload() {
-    const srcs = {
-      yes: 'sounds/click/YES.mp3',
-      no1: 'sounds/click/NO.mp3',
-      no2: 'sounds/click/NO2.mp3',
-      help: 'sounds/click/HELP.mp3'
-    };
-    for (const [key, src] of Object.entries(srcs)) {
-      const a = new Audio(src);
-      a.preload = 'auto';
-      a.volume = 0.6;
-      this._cache[key] = a;
-    }
-    for (const f of this._winFiles) {
-      const a = new Audio('sounds/win/' + f);
-      a.preload = 'auto';
-      a.volume = 0.7;
-      this._cache['win_' + f] = a;
+    for (const [group, files] of Object.entries(this._groups)) {
+      for (let i = 0; i < files.length; i++) {
+        const key = group + '_' + i;
+        const a = new Audio(files[i]);
+        a.preload = 'auto';
+        a.volume = group === 'win' ? 0.7 : 0.6;
+        this._cache[key] = a;
+      }
     }
   },
 
@@ -2182,23 +2156,26 @@ const SoundFX = {
     clone.play().catch(() => {});
   },
 
+  _playRandom(group) {
+    const files = this._groups[group];
+    const idx = Math.floor(Math.random() * files.length);
+    this._play(this._cache[group + '_' + idx]);
+  },
+
   playCorrect() {
-    if (Math.random() < 0.3) this._play(this._cache.yes);
+    this._playRandom('yes');
   },
 
   playWrong() {
-    if (Math.random() < 0.3) {
-      this._play(Math.random() < 0.5 ? this._cache.no1 : this._cache.no2);
-    }
+    this._playRandom('no');
   },
 
   playHelp() {
-    this._play(this._cache.help);
+    this._playRandom('help');
   },
 
   playWin() {
-    const f = this._winFiles[Math.floor(Math.random() * this._winFiles.length)];
-    this._play(this._cache['win_' + f]);
+    this._playRandom('win');
   }
 };
 </script>

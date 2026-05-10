@@ -1,7 +1,8 @@
-const CACHE_NAME = 'sudoku-pro-v3';
+const CACHE_NAME = 'sudoku-pro-v4';
 const ASSETS = [
   './',
   './index.html',
+  './sounds.js',
   './manifest.json',
   './sudoku.png'
 ];

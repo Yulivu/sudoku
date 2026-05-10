@@ -54,12 +54,36 @@
 ```
 sudoku/
 ├── index.html      # 主页面（HTML + CSS + JS 全部内联）
+├── sounds.js       # 音效清单（由 build-sounds.js 自动生成）
+├── build-sounds.js # 音效扫描脚本
 ├── manifest.json   # PWA 配置文件
 ├── sw.js           # Service Worker
 ├── sudoku.png      # 应用图标
 ├── icon-192.png    # PWA 图标 192px
-└── icon-512.png    # PWA 图标 512px
+├── icon-512.png    # PWA 图标 512px
+└── sounds/
+    └── click/
+        ├── YES/    # 点对音效
+        ├── NO/     # 点错音效
+        ├── HELP/   # 提示音效
+        └── win/    # 胜利音效
 ```
+
+## 音效管理
+
+音效文件夹结构：
+- `sounds/click/YES/` — 点对时随机播放其中一个
+- `sounds/click/NO/` — 点错时随机播放其中一个
+- `sounds/click/HELP/` — 点提示时随机播放其中一个
+- `sounds/click/win/` — 胜利时随机播放其中一个
+
+增删音效后，运行以下命令更新清单：
+
+```bash
+node build-sounds.js
+```
+
+脚本会扫描上述四个文件夹，重新生成 `sounds.js`。删掉的文件会自动从清单中移除，新增的文件会自动加入。无需手动修改任何代码。
 
 ## 本地运行
 
